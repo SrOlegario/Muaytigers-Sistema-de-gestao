@@ -42,9 +42,6 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo } = React;
 
-    // ==========================================
-    // INITIAL MOCK DATA & CONSTANTS
-    // ==========================================
     const getLocalDateString = (date = new Date()) => {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -164,13 +161,8 @@
       reader.readAsDataURL(file);
     });
 
-    // ==========================================
-    // MAIN APP COMPONENT
-    // ==========================================
     function App() {
-      const [isAuthenticated, setIsAuthenticated] = useState(() => {
-        return localStorage.getItem('muay_tigers_auth') === 'true';
-      });
+      const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('muay_tigers_auth') === 'true');
       const [loginEmail, setLoginEmail] = useState('admin@muaytigers.com');
       const [loginPassword, setLoginPassword] = useState('');
       const [loginError, setLoginError] = useState('');
@@ -376,7 +368,7 @@
             <div className="max-w-7xl mx-auto">
               {currentTab === 'dashboard' && <DashboardView students={students} classes={classes} fees={fees} attendances={attendances} belts={belts} adminProfile={adminProfile} />}
               {currentTab === 'students' && <StudentsView students={students} setStudents={setStudents} classes={classes} belts={belts} />}
-              {currentTab === 'classes' && <ClassesView classes={classes} setClasses={setClasses} students={students} />}
+              {currentTab === 'classes' && <ClassesView classes={classes} setClasses={setClasses} students={students} setStudents={setStudents} />}
               {currentTab === 'attendance' && <AttendanceView classes={classes} students={students} attendances={attendances} setAttendances={setAttendances} />}
               {currentTab === 'financial' && <FinancialView fees={fees} setFees={setFees} students={students} />}
               {currentTab === 'graduations' && <GraduationsView students={students} setStudents={setStudents} belts={belts} graduationHistory={graduationHistory} setGraduationHistory={setGraduationHistory} />}
@@ -388,9 +380,7 @@
       );
     }
 
-    // ==========================================
-    // 1. DASHBOARD VIEW
-    // ==========================================
+    // DASHBOARD VIEW
     function DashboardView({ students, classes, fees, attendances, belts, adminProfile }) {
       const activeStudents = students.filter(s => s.status === 'Ativo').length;
       const experimentalStudents = students.filter(s => s.status === 'Experimental').length;
@@ -527,9 +517,7 @@
       );
     }
 
-    // ==========================================
-    // 2. STUDENTS MODULE (ALUNOS & FICHA COMPLETA)
-    // ==========================================
+    // STUDENTS MODULE
     function StudentsView({ students, setStudents, classes, belts }) {
       const [searchTerm, setSearchTerm] = useState('');
       const [statusFilter, setStatusFilter] = useState('Todos');
@@ -611,6 +599,17 @@
         setIsModalOpen(false);
       };
 
+      const handleToggleClassInForm = (classId) => {
+        setFormData(prev => {
+          const current = prev.classIds || [];
+          if (current.includes(classId)) {
+            return { ...prev, classIds: current.filter(id => id !== classId) };
+          } else {
+            return { ...prev, classIds: [...current, classId] };
+          }
+        });
+      };
+
       const handleToggleStatus = (id, currentStatus) => {
         const nextStatus = currentStatus === 'Ativo' ? 'Inativo' : 'Ativo';
         setStudents(prev => prev.map(s => s.id === id ? { ...s, status: nextStatus } : s));
@@ -629,7 +628,7 @@
         const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                               student.phone.includes(searchTerm);
         const matchesStatus = statusFilter === 'Todos' || student.status === statusFilter;
-        const matchesClass = classFilter === 'Todas' || student.classIds.includes(classFilter);
+        const matchesClass = classFilter === 'Todas' || student.classIds?.includes(classFilter);
         return matchesSearch && matchesStatus && matchesClass;
       });
 
@@ -869,6 +868,32 @@
                         className="w-full bg-[#1A1A1A] border border-[#2B2B2B] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37]"
                       />
                     </div>
+
+                    {/* SELEÇÃO DE TURMAS DO ALUNO */}
+                    <div className="md:col-span-2 bg-[#1A1A1A] border border-[#2B2B2B] p-4 rounded-xl space-y-2">
+                      <label className="block font-medium text-[#D4AF37]">Turmas Matriculadas</label>
+                      <p className="text-[11px] text-gray-400 mb-2">Marque todas as turmas das quais este aluno faz parte:</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {classes.map(c => {
+                          const isChecked = formData.classIds?.includes(c.id);
+                          return (
+                            <label key={c.id} className={`flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${isChecked ? 'bg-[#D4AF37]/10 border-[#D4AF37] text-white' : 'bg-[#141414] border-[#2B2B2B] text-gray-400 hover:border-gray-500'}`}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleToggleClassInForm(c.id)}
+                                className="accent-[#D4AF37] w-4 h-4 cursor-pointer"
+                              />
+                              <div>
+                                <div className="font-bold text-xs">{c.name}</div>
+                                <div className="text-[10px] text-gray-400">{c.schedule}</div>
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+
                     <div className="md:col-span-2">
                       <label className="block font-medium text-gray-400 mb-1">Endereço Completo</label>
                       <input
@@ -952,6 +977,24 @@
                     </div>
                   </div>
 
+                  <div className="bg-[#1A1A1A] border border-[#2B2B2B] p-5 rounded-2xl space-y-3">
+                    <h4 className="font-bold text-[#D4AF37] text-sm">Turmas Matriculadas</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedStudent.classIds && selectedStudent.classIds.length > 0 ? (
+                        selectedStudent.classIds.map(cid => {
+                          const cls = classes.find(c => c.id === cid);
+                          return cls ? (
+                            <span key={cid} className="px-3 py-1.5 bg-[#141414] border border-[#2B2B2B] text-gray-200 rounded-lg text-xs font-semibold">
+                              {cls.name} ({cls.schedule})
+                            </span>
+                          ) : null;
+                        })
+                      ) : (
+                        <span className="text-gray-500">Nenhuma turma vinculada.</span>
+                      )}
+                    </div>
+                  </div>
+
                   {selectedStudent.guardians && selectedStudent.guardians.length > 0 && (
                     <div className="bg-[#1A1A1A] border border-[#2B2B2B] p-5 rounded-2xl space-y-3">
                       <h4 className="font-bold text-white text-sm">Responsáveis (Menor de Idade)</h4>
@@ -1012,12 +1055,13 @@
       );
     }
 
-    // ==========================================
-    // 3. CLASSES MODULE
-    // ==========================================
-    function ClassesView({ classes, setClasses, students }) {
+    // CLASSES MODULE (TURMAS & ADICIONAR/REMOVER ALUNOS DE UMA TURMA ESPECÍFICA)
+    function ClassesView({ classes, setClasses, students, setStudents }) {
       const [isModalOpen, setIsModalOpen] = useState(false);
       const [editingClass, setEditingClass] = useState(null);
+      const [managingClass, setManagingClass] = useState(null); // Turma selecionada para gerenciar alunos
+      const [selectedStudentToAdd, setSelectedStudentToAdd] = useState('');
+
       const [formData, setFormData] = useState({
         name: '',
         schedule: '',
@@ -1062,13 +1106,42 @@
         setIsModalOpen(false);
       };
 
+      // Adicionar um aluno em específico a esta turma
+      const handleAddStudentToClass = (e) => {
+        e.preventDefault();
+        if (!selectedStudentToAdd || !managingClass) return;
+
+        setStudents(prev => prev.map(s => {
+          if (s.id === selectedStudentToAdd) {
+            const currentIds = s.classIds || [];
+            if (!currentIds.includes(managingClass.id)) {
+              return { ...s, classIds: [...currentIds, managingClass.id] };
+            }
+          }
+          return s;
+        }));
+
+        setSelectedStudentToAdd('');
+      };
+
+      // Remover um aluno em específico desta turma
+      const handleRemoveStudentFromClass = (studentId) => {
+        if (!managingClass) return;
+        setStudents(prev => prev.map(s => {
+          if (s.id === studentId) {
+            return { ...s, classIds: (s.classIds || []).filter(id => id !== managingClass.id) };
+          }
+          return s;
+        }));
+      };
+
       return (
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#141414] border border-[#262626] rounded-3xl p-6">
             <div>
               <span className="text-[11px] font-bold text-[#D4AF37] uppercase tracking-widest">Turmas & Horários</span>
               <h2 className="text-2xl font-black text-white mt-1">Grade de Treinamentos</h2>
-              <p className="text-xs text-gray-400 mt-1">Gerencie os horários, capacidade e turmas de Muay Thai da academia.</p>
+              <p className="text-xs text-gray-400 mt-1">Gerencie os horários, capacidade e adicione/remova alunos de turmas específicas.</p>
             </div>
             <button
               onClick={() => handleOpenForm()}
@@ -1094,6 +1167,7 @@
                       <button
                         onClick={() => handleOpenForm(cls)}
                         className="text-gray-400 hover:text-white p-1.5 rounded-lg bg-[#1A1A1A] border border-[#2B2B2B]"
+                        title="Editar Detalhes da Turma"
                       >
                         <i className="fa-solid fa-pen text-xs"></i>
                       </button>
@@ -1104,20 +1178,119 @@
                     </p>
                   </div>
 
-                  <div className="space-y-3 pt-4 border-t border-[#222]">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-400">Ocupação</span>
-                      <span className="text-white font-bold">{enrolledCount} / {cls.maxCapacity} alunos</span>
+                  <div className="space-y-4 pt-4 border-t border-[#222]">
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-400">Ocupação</span>
+                        <span className="text-white font-bold">{enrolledCount} / {cls.maxCapacity} alunos</span>
+                      </div>
+                      <div className="w-full bg-[#1A1A1A] h-2 rounded-full overflow-hidden border border-[#2B2B2B]">
+                        <div className="bg-[#D4AF37] h-full rounded-full transition-all duration-500" style={{ width: `${percentage}%` }}></div>
+                      </div>
                     </div>
-                    <div className="w-full bg-[#1A1A1A] h-2 rounded-full overflow-hidden border border-[#2B2B2B]">
-                      <div className="bg-[#D4AF37] h-full rounded-full transition-all duration-500" style={{ width: `${percentage}%` }}></div>
-                    </div>
+
+                    <button
+                      onClick={() => setManagingClass(cls)}
+                      className="w-full bg-[#1A1A1A] hover:bg-[#252525] border border-[#2B2B2B] text-[#D4AF37] font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <i className="fa-solid fa-users-gear"></i> Ver / Gerenciar Alunos
+                    </button>
                   </div>
                 </div>
               );
             })}
           </div>
 
+          {/* MODAL DE GERENCIAMENTO DE ALUNOS NA TURMA */}
+          {managingClass && (
+            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-[#141414] border border-[#262626] rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl">
+                <div className="flex justify-between items-center bg-[#1A1A1A] border-b border-[#262626] p-6">
+                  <div>
+                    <h3 className="font-bold text-white text-base">{managingClass.name}</h3>
+                    <p className="text-xs text-[#D4AF37]">{managingClass.schedule}</p>
+                  </div>
+                  <button onClick={() => setManagingClass(null)} className="text-gray-400 hover:text-white p-2">
+                    <i className="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto text-xs">
+                  {/* FORMULÁRIO DE ADICIONAR ALUNO À TURMA */}
+                  <form onSubmit={handleAddStudentToClass} className="bg-[#1A1A1A] border border-[#2B2B2B] p-4 rounded-2xl space-y-3">
+                    <label className="block font-bold text-white text-xs">Adicionar Aluno nesta Turma</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={selectedStudentToAdd}
+                        onChange={(e) => setSelectedStudentToAdd(e.target.value)}
+                        className="flex-1 bg-[#141414] border border-[#2B2B2B] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#D4AF37]"
+                      >
+                        <option value="">Selecione um aluno cadastrado...</option>
+                        {students
+                          .filter(s => !s.classIds?.includes(managingClass.id))
+                          .map(s => (
+                            <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
+                          ))
+                        }
+                      </select>
+                      <button
+                        type="submit"
+                        disabled={!selectedStudentToAdd}
+                        className="bg-gradient-to-r from-[#D4AF37] to-amber-600 disabled:opacity-50 text-black font-bold px-4 py-2.5 rounded-xl shadow cursor-pointer uppercase font-bold tracking-wider"
+                      >
+                        <i className="fa-solid fa-plus mr-1"></i> Adicionar
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* LISTA DE ALUNOS ATUALMENTE NA TURMA */}
+                  <div className="space-y-3">
+                    <h4 className="font-bold text-gray-300 text-xs uppercase tracking-wider">
+                      Alunos Matriculados nesta Turma ({students.filter(s => s.classIds?.includes(managingClass.id)).length})
+                    </h4>
+                    <div className="divide-y divide-[#222] border border-[#262626] rounded-2xl overflow-hidden bg-[#1A1A1A]">
+                      {students.filter(s => s.classIds?.includes(managingClass.id)).length === 0 ? (
+                        <div className="p-6 text-center text-gray-500">Nenhum aluno vinculado a esta turma ainda.</div>
+                      ) : (
+                        students.filter(s => s.classIds?.includes(managingClass.id)).map(student => (
+                          <div key={student.id} className="p-3.5 flex items-center justify-between hover:bg-[#222]/50 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-[#141414] border border-[#2B2B2B] flex items-center justify-center font-bold text-[#D4AF37]">
+                                {student.photo ? <img src={student.photo} alt="" className="w-full h-full object-cover rounded-full" /> : student.name.charAt(0)}
+                              </div>
+                              <div>
+                                <div className="font-bold text-white">{student.name}</div>
+                                <div className="text-[10px] text-gray-400">{student.phone || 'Sem telefone'}</div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveStudentFromClass(student.id)}
+                              className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                              title="Remover da Turma"
+                            >
+                              <i className="fa-solid fa-user-minus"></i> Remover
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end bg-[#1A1A1A] border-t border-[#262626] p-4">
+                  <button
+                    onClick={() => setManagingClass(null)}
+                    className="px-6 py-2.5 rounded-xl bg-[#252525] text-white font-bold hover:bg-[#333]"
+                  >
+                    Concluído
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL DE ADICIONAR OU EDITAR TURMA */}
           {isModalOpen && (
             <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-[#141414] border border-[#262626] rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl">
@@ -1195,9 +1368,7 @@
       );
     }
 
-    // ==========================================
-    // 4. ATTENDANCE MODULE
-    // ==========================================
+    // ATTENDANCE MODULE
     function AttendanceView({ classes, students, attendances, setAttendances }) {
       const [selectedClassId, setSelectedClassId] = useState(classes[0]?.id || '');
       const [selectedDate, setSelectedDate] = useState(getLocalDateString());
@@ -1323,9 +1494,7 @@
       );
     }
 
-    // ==========================================
-    // 5. FINANCIAL MODULE
-    // ==========================================
+    // FINANCIAL MODULE
     function FinancialView({ fees, setFees, students }) {
       const [isModalOpen, setIsModalOpen] = useState(false);
       const [targetFee, setTargetFee] = useState(null);
@@ -1480,9 +1649,7 @@
       );
     }
 
-    // ==========================================
-    // 6. GRADUATIONS MODULE
-    // ==========================================
+    // GRADUATIONS MODULE
     function GraduationsView({ students, setStudents, belts, graduationHistory, setGraduationHistory }) {
       const [selectedStudentId, setSelectedStudentId] = useState(students[0]?.id || '');
       const [selectedBeltId, setSelectedBeltId] = useState(belts[0]?.id || '');
@@ -1597,9 +1764,7 @@
       );
     }
 
-    // ==========================================
-    // 7. REPORTS MODULE
-    // ==========================================
+    // REPORTS MODULE
     function ReportsView({ students, classes, fees, attendances, belts }) {
       const [reportType, setReportType] = useState('students');
 
@@ -1702,9 +1867,7 @@
       );
     }
 
-    // ==========================================
-    // 8. SETTINGS MODULE
-    // ==========================================
+    // SETTINGS MODULE
     function SettingsView({ students, setStudents, classes, setClasses, fees, setFees, attendances, setAttendances, graduationHistory, setGraduationHistory, adminProfile, setAdminProfile }) {
       const [importMessage, setImportMessage] = useState('');
 
@@ -1810,7 +1973,6 @@
       );
     }
 
-    // Render App
     const rootElement = document.getElementById('root');
     const root = ReactDOM.createRoot(rootElement);
     root.render(<App />);
